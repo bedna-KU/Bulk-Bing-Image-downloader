@@ -1,3 +1,11 @@
+# Modification: 7/17/2019
+#           by: Seth Juarez (Microsoft)
+#      changes: This code has been modified from the original (https://github.com/ostrolucky/Bulk-Bing-Image-downloader).
+#               Moved bulk '__main__' code to a separate function in order to make it easily callable from other 
+#               python programs. No functional changes were made otherwise.
+#
+#          see: fetch_images function
+
 #!/usr/bin/env python3
 import os, urllib.request, re, threading, posixpath, urllib.parse, argparse, socket, time, hashlib, pickle, signal, imghdr
 
