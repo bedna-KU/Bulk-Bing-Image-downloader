@@ -50,7 +50,7 @@ def download(pool_sema: threading.Semaphore, url: str, output_dir: str):
         in_progress.remove(filename)
         pool_sema.release()
 
-def fetch_images_from_keyword(pool_sema: threading.Semaphore, keyword: str, output_dir: str, filters: str, limit: int):
+def fetch_images_from_keyword(pool_sema: threading.Semaphore, keyword: str, output_dir: str, filters: str, limit: int, adlt: str):
     current = 0
     last = ''
     while True:
@@ -84,21 +84,11 @@ def backup_history(*args):
     if args:
         exit(0)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = 'Bing image bulk downloader')
-    parser.add_argument('-s', '--search-string', help = 'Keyword to search', required = False)
-    parser.add_argument('-f', '--search-file', help = 'Path to a file containing search strings line by line', required = False)
-    parser.add_argument('-o', '--output', help = 'Output directory', required = False)
-    parser.add_argument('--adult-filter-on', help ='Enable adult filter', action = 'store_true', required = False)
-    parser.add_argument('--adult-filter-off', help = 'Disable adult filter', action = 'store_true', required = False)
-    parser.add_argument('--filters', help = 'Any query based filters you want to append when searching for images, e.g. +filterui:license-L1', required = False)
-    parser.add_argument('--limit', help = 'Make sure not to search for more than specified amount of images.', required = False, type = int)
-    parser.add_argument('--threads', help = 'Number of threads', type = int, default = 20)
-    args = parser.parse_args()
-    if (not args.search_string) and (not args.search_file):
+def fetch_images(adult_filter_off=False, adult_filter_on=False, filters=None, limit=None, output=None, search_file=None, search_string=None, threads=20):
+    if (not search_string) and (not search_file):
         parser.error('Provide Either search string or path to file containing search strings')
-    if args.output:
-        output_dir = args.output
+    if output:
+        output_dir = output
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     output_dir_origin = output_dir
@@ -114,23 +104,36 @@ if __name__ == "__main__":
         adlt = ''
     else:
         adlt = 'off'
-    if args.adult_filter_off:
+    if adult_filter_off:
         adlt = 'off'
-    elif args.adult_filter_on:
+    elif adult_filter_on:
         adlt = ''
-    pool_sema = threading.BoundedSemaphore(args.threads)
-    if args.search_string:
-        fetch_images_from_keyword(pool_sema, args.search_string,output_dir, args.filters, args.limit)
-    elif args.search_file:
+    pool_sema = threading.BoundedSemaphore(threads)
+    if search_string:
+        fetch_images_from_keyword(pool_sema, search_string,output_dir, filters, limit, adlt)
+    elif search_file:
         try:
-            inputFile=open(args.search_file)
+            inputFile=open(search_file)
         except (OSError, IOError):
-            print("Couldn't open file {}".format(args.search_file))
+            print("Couldn't open file {}".format(search_file))
             exit(1)
         for keyword in inputFile.readlines():
             output_sub_dir = os.path.join(output_dir_origin, keyword.strip().replace(' ', '_'))
             if not os.path.exists(output_sub_dir):
                 os.makedirs(output_sub_dir)
-            fetch_images_from_keyword(pool_sema, keyword,output_sub_dir, args.filters, args.limit)
+            fetch_images_from_keyword(pool_sema, keyword,output_sub_dir, filters, limit, adlt)
             backup_history()
         inputFile.close()
+        
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = 'Bing image bulk downloader')
+    parser.add_argument('-s', '--search-string', help = 'Keyword to search', required = False)
+    parser.add_argument('-f', '--search-file', help = 'Path to a file containing search strings line by line', required = False)
+    parser.add_argument('-o', '--output', help = 'Output directory', required = False)
+    parser.add_argument('--adult-filter-on', help ='Enable adult filter', action = 'store_true', required = False)
+    parser.add_argument('--adult-filter-off', help = 'Disable adult filter', action = 'store_true', required = False)
+    parser.add_argument('--filters', help = 'Any query based filters you want to append when searching for images, e.g. +filterui:license-L1', required = False)
+    parser.add_argument('--limit', help = 'Make sure not to search for more than specified amount of images.', required = False, type = int)
+    parser.add_argument('--threads', help = 'Number of threads', type = int, default = 20)
+    args = parser.parse_args()
+    fetch_images(**vars(args))
